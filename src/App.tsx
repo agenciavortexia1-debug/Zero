@@ -258,8 +258,15 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-zinc-50 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-zinc-400" />
+      <div className="min-h-screen bg-zinc-50 flex flex-col items-center justify-center gap-4">
+        <div className="w-16 h-16 rounded-2xl overflow-hidden shadow-xl animate-pulse">
+          <img 
+            src="https://lh3.googleusercontent.com/d/1etFdTb3CPLH2n0tqKKHW7xf-9Pj5_f3m" 
+            alt="Logo" 
+            className="w-full h-full object-cover"
+          />
+        </div>
+        <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
       </div>
     );
   }
@@ -270,8 +277,12 @@ export default function App() {
       <header className="bg-white border-b border-zinc-200 px-6 py-4 sticky top-0 z-10">
         <div className="max-w-md mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center">
-              <Cigarette className="w-5 h-5 text-white" />
+            <div className="w-8 h-8 rounded-lg overflow-hidden">
+              <img 
+                src="https://lh3.googleusercontent.com/d/1etFdTb3CPLH2n0tqKKHW7xf-9Pj5_f3m" 
+                alt="Logo" 
+                className="w-full h-full object-cover"
+              />
             </div>
             <h1 className="font-bold text-lg tracking-tight">FumoZero</h1>
           </div>
@@ -636,7 +647,13 @@ export default function App() {
           onClick={() => setActiveTab('dashboard')}
           className={`flex flex-col items-center gap-1 transition-colors ${activeTab === 'dashboard' ? 'text-zinc-900' : 'text-zinc-400'}`}
         >
-          <Cigarette className="w-6 h-6" />
+          <div className="w-6 h-6 rounded-md overflow-hidden">
+            <img 
+              src="https://lh3.googleusercontent.com/d/1etFdTb3CPLH2n0tqKKHW7xf-9Pj5_f3m" 
+              alt="Início" 
+              className={`w-full h-full object-cover ${activeTab === 'dashboard' ? '' : 'grayscale opacity-50'}`}
+            />
+          </div>
           <span className="text-[10px] font-bold uppercase">Início</span>
         </button>
         <button 
@@ -684,8 +701,12 @@ export default function App() {
                   {packs.map((pack) => (
                     <div key={pack.id} className="flex items-center justify-between p-4 bg-zinc-50 rounded-2xl border border-zinc-100">
                       <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${pack.status === 'active' ? 'bg-emerald-100 text-emerald-600' : 'bg-zinc-200 text-zinc-500'}`}>
-                          <Cigarette className="w-5 h-5" />
+                        <div className={`w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center ${pack.status === 'active' ? 'ring-2 ring-emerald-500' : 'opacity-50'}`}>
+                          <img 
+                            src="https://lh3.googleusercontent.com/d/1etFdTb3CPLH2n0tqKKHW7xf-9Pj5_f3m" 
+                            alt="Pack" 
+                            className="w-full h-full object-cover"
+                          />
                         </div>
                         <div>
                           <p className="font-bold text-sm">R$ {pack.price.toFixed(2)}</p>
