@@ -261,7 +261,7 @@ export default function App() {
       <div className="min-h-screen bg-zinc-50 flex flex-col items-center justify-center gap-4">
         <div className="w-16 h-16 rounded-2xl overflow-hidden shadow-xl animate-pulse">
           <img 
-            src="https://lh3.googleusercontent.com/d/1etFdTb3CPLH2n0tqKKHW7xf-9Pj5_f3m" 
+            src="https://lh3.googleusercontent.com/d/1OqXHFBT9sZ_I8FygcLItn9Cn9QO6HNSW" 
             alt="Logo" 
             className="w-full h-full object-cover"
           />
@@ -279,7 +279,7 @@ export default function App() {
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg overflow-hidden">
               <img 
-                src="https://lh3.googleusercontent.com/d/1etFdTb3CPLH2n0tqKKHW7xf-9Pj5_f3m" 
+                src="https://lh3.googleusercontent.com/d/1OqXHFBT9sZ_I8FygcLItn9Cn9QO6HNSW" 
                 alt="Logo" 
                 className="w-full h-full object-cover"
               />
@@ -649,7 +649,7 @@ export default function App() {
         >
           <div className="w-6 h-6 rounded-md overflow-hidden">
             <img 
-              src="https://lh3.googleusercontent.com/d/1etFdTb3CPLH2n0tqKKHW7xf-9Pj5_f3m" 
+              src="https://lh3.googleusercontent.com/d/1OqXHFBT9sZ_I8FygcLItn9Cn9QO6HNSW" 
               alt="Início" 
               className={`w-full h-full object-cover ${activeTab === 'dashboard' ? '' : 'grayscale opacity-50'}`}
             />
@@ -703,7 +703,7 @@ export default function App() {
                       <div className="flex items-center gap-4">
                         <div className={`w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center ${pack.status === 'active' ? 'ring-2 ring-emerald-500' : 'opacity-50'}`}>
                           <img 
-                            src="https://lh3.googleusercontent.com/d/1etFdTb3CPLH2n0tqKKHW7xf-9Pj5_f3m" 
+                            src="https://lh3.googleusercontent.com/d/1OqXHFBT9sZ_I8FygcLItn9Cn9QO6HNSW" 
                             alt="Pack" 
                             className="w-full h-full object-cover"
                           />
