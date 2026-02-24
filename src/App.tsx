@@ -23,6 +23,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import Markdown from 'react-markdown';
 import { format, startOfMonth, endOfMonth, startOfDay, endOfDay, eachDayOfInterval, isSameDay, addMonths, subMonths, isSameMonth, setHours, setMinutes } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { supabase } from './lib/supabase';
 import { 
   LineChart, 
   Line, 
@@ -80,19 +81,77 @@ export default function App() {
 
   const fetchData = async (start?: Date, end?: Date) => {
     try {
-      let statsUrl = '/api/stats';
+      // Fetch Packs with unit counts
+      const { data: packsData, error: packsError } = await supabase
+        .from('packs')
+        .select('*, units(count)')
+        .order('start_time', { ascending: false });
+
+      if (packsError) throw packsError;
+
+      const formattedPacks = packsData.map((p: any) => ({
+        ...p,
+        unit_count: p.units?.[0]?.count || 0
+      }));
+      setPacks(formattedPacks);
+
+      // Fetch all units for stats
+      let unitsQuery = supabase.from('units').select('timestamp');
+      let statsPacksQuery = supabase.from('packs').select('price, start_time');
+
       if (start && end) {
-        statsUrl += `?start=${start.toISOString()}&end=${end.toISOString()}`;
+        unitsQuery = unitsQuery.gte('timestamp', start.toISOString()).lte('timestamp', end.toISOString());
+        statsPacksQuery = statsPacksQuery.gte('start_time', start.toISOString()).lte('start_time', end.toISOString());
       }
-      
-      const [packsRes, statsRes] = await Promise.all([
-        fetch('/api/packs'),
-        fetch(statsUrl)
+
+      const [unitsRes, statsPacksRes] = await Promise.all([
+        unitsQuery,
+        statsPacksQuery
       ]);
-      const packsData = await packsRes.json();
-      const statsData = await statsRes.json();
-      setPacks(packsData);
-      setStats(statsData);
+
+      if (unitsRes.error) throw unitsRes.error;
+      if (statsPacksRes.error) throw statsPacksRes.error;
+
+      const unitsData = unitsRes.data;
+      const statsPacksData = statsPacksRes.data;
+
+      // Calculate Stats
+      const totalSpent = statsPacksData.reduce((sum, p) => sum + p.price, 0);
+      const totalPacks = statsPacksData.length;
+      const totalUnits = unitsData.length;
+
+      const firstDate = start || (statsPacksData.length > 0 ? new Date(Math.min(...statsPacksData.map(p => new Date(p.start_time).getTime()))) : new Date());
+      const lastDate = end || new Date();
+
+      const diffTime = Math.abs(lastDate.getTime() - firstDate.getTime());
+      const diffDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+      const diffWeeks = Math.max(1, diffDays / 7);
+      const diffMonths = Math.max(1, diffDays / 30);
+
+      // Timeline
+      const timelineMap = new Map();
+      unitsData.forEach(u => {
+        const d = new Date(u.timestamp).toISOString().split('T')[0];
+        timelineMap.set(d, (timelineMap.get(d) || 0) + 1);
+      });
+
+      const timeline = Array.from(timelineMap.entries())
+        .map(([date, count]) => ({ date, count }))
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+      setStats({
+        totalSpent,
+        totalPacks,
+        totalUnits,
+        avgPacksPerDay: (totalPacks / diffDays).toFixed(2),
+        avgSpentPerDay: (totalSpent / diffDays).toFixed(2),
+        avgPacksPerWeek: (totalPacks / diffWeeks).toFixed(2),
+        avgSpentPerWeek: (totalSpent / diffWeeks).toFixed(2),
+        avgPacksPerMonth: (totalPacks / diffMonths).toFixed(2),
+        avgSpentPerMonth: (totalSpent / diffMonths).toFixed(2),
+        periodDays: diffDays,
+        timeline
+      });
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -137,15 +196,23 @@ export default function App() {
     if (!price) return;
 
     try {
-      const res = await fetch('/api/packs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ price: parseFloat(price) })
-      });
-      if (res.ok) {
-        setPrice('');
-        fetchData();
+      // Finish active pack
+      const active = packs.find(p => p.status === 'active');
+      if (active) {
+        await supabase
+          .from('packs')
+          .update({ status: 'finished', end_time: new Date().toISOString() })
+          .eq('id', active.id);
       }
+
+      const { error } = await supabase
+        .from('packs')
+        .insert([{ price: parseFloat(price), status: 'active' }]);
+
+      if (error) throw error;
+      
+      setPrice('');
+      fetchData();
     } catch (error) {
       console.error('Error creating pack:', error);
     }
@@ -157,15 +224,29 @@ export default function App() {
     setRegisteringUnit(true);
 
     try {
-      const res = await fetch('/api/units', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pack_id: activePack.id, reason })
-      });
-      if (res.ok) {
-        setReason('');
-        fetchData();
+      const { error: unitError } = await supabase
+        .from('units')
+        .insert([{ pack_id: activePack.id, reason }]);
+
+      if (unitError) throw unitError;
+
+      // Check count
+      const { count, error: countError } = await supabase
+        .from('units')
+        .select('*', { count: 'exact', head: true })
+        .eq('pack_id', activePack.id);
+
+      if (countError) throw countError;
+
+      if (count && count >= 20) {
+        await supabase
+          .from('packs')
+          .update({ status: 'finished', end_time: new Date().toISOString() })
+          .eq('id', activePack.id);
       }
+      
+      setReason('');
+      fetchData();
     } catch (error) {
       console.error('Error consuming unit:', error);
     } finally {
