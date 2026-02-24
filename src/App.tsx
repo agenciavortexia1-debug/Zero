@@ -16,7 +16,8 @@ import {
   MessageSquare,
   Calendar,
   Clock,
-  Check
+  Check,
+  Download
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Markdown from 'react-markdown';
@@ -35,7 +36,7 @@ import {
 } from 'recharts';
 
 interface Pack {
-  id: number;
+  id: string | number;
   start_time: string;
   end_time: string | null;
   price: number;
@@ -63,20 +64,11 @@ export default function App() {
   const [price, setPrice] = useState<string>('');
   const [reason, setReason] = useState<string>('');
   const [loading, setLoading] = useState(true);
-  const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
-  const [analyzing, setAnalyzing] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'analysis' | 'coach'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'analysis'>('dashboard');
   const [registeringUnit, setRegisteringUnit] = useState(false);
-  
-  // Chat State
-  const [chatMessages, setChatMessages] = useState<{role: 'user' | 'ai', text: string}[]>([]);
-  const [chatInput, setChatInput] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-
-  // Trigger Analysis State
-  const [triggerAnalysis, setTriggerAnalysis] = useState<{triggers: any[], encouragement: string} | null>(null);
-  const [analyzingTriggers, setAnalyzingTriggers] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showInstallBtn, setShowInstallBtn] = useState(false);
   
   // Date Range Filter State
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -110,7 +102,28 @@ export default function App() {
 
   useEffect(() => {
     fetchData();
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setShowInstallBtn(true);
+    });
+
+    window.addEventListener('appinstalled', () => {
+      setShowInstallBtn(false);
+      setDeferredPrompt(null);
+    });
   }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setShowInstallBtn(false);
+      setDeferredPrompt(null);
+    }
+  };
 
   const handleApplyFilter = () => {
     setFilterStart(tempStart);
@@ -160,131 +173,6 @@ export default function App() {
     }
   };
 
-  const generateAiAnalysis = async () => {
-    setAnalyzing(true);
-    try {
-      const res = await fetch('/api/ai-analysis', { method: 'POST' });
-      const data = await res.json();
-      setAiAnalysis(data.analysis);
-    } catch (error) {
-      console.error('Error generating analysis:', error);
-    } finally {
-      setAnalyzing(false);
-    }
-  };
-
-  const generateTriggerAnalysis = async () => {
-    setAnalyzingTriggers(true);
-    try {
-      const res = await fetch('/api/trigger-analysis', { method: 'POST' });
-      const data = await res.json();
-      setTriggerAnalysis(data);
-    } catch (error) {
-      console.error('Error generating trigger analysis:', error);
-    } finally {
-      setAnalyzingTriggers(false);
-    }
-  };
-
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!chatInput.trim()) return;
-
-    const userMsg = { role: 'user' as const, text: chatInput };
-    setChatMessages(prev => [...prev, userMsg]);
-    setChatInput('');
-    setIsTyping(true);
-
-    try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: chatInput, history: chatMessages })
-      });
-      const data = await res.json();
-      setChatMessages(prev => [...prev, { role: 'ai', text: data.response }]);
-    } catch (error) {
-      console.error('Error sending message:', error);
-    } finally {
-      setIsTyping(false);
-    }
-  };
-
-  const CoachView = () => (
-    <motion.div 
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="flex flex-col h-[calc(100vh-250px)]"
-    >
-      <div className="flex-1 overflow-y-auto space-y-4 pb-4 scrollbar-hide">
-        {chatMessages.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full text-center space-y-4 px-8">
-            <div className="w-16 h-16 bg-zinc-100 rounded-full flex items-center justify-center text-zinc-400">
-              <MessageSquare className="w-8 h-8" />
-            </div>
-            <div>
-              <h3 className="font-bold text-zinc-900">Seu Coach Anti-Tabagismo</h3>
-              <p className="text-xs text-zinc-500 mt-1">Estou aqui para te ajudar a lidar com a fissura e manter o foco no seu objetivo.</p>
-            </div>
-            <div className="grid grid-cols-1 gap-2 w-full max-w-xs">
-              <button 
-                onClick={() => setChatInput("Estou com muita vontade de fumar agora, o que eu faço?")}
-                className="text-[10px] bg-white border border-zinc-200 rounded-xl p-3 text-zinc-600 hover:border-zinc-900 transition-colors"
-              >
-                "Estou com muita vontade de fumar agora..."
-              </button>
-              <button 
-                onClick={() => setChatInput("Quais os benefícios de parar hoje?")}
-                className="text-[10px] bg-white border border-zinc-200 rounded-xl p-3 text-zinc-600 hover:border-zinc-900 transition-colors"
-              >
-                "Quais os benefícios de parar hoje?"
-              </button>
-            </div>
-          </div>
-        )}
-        
-        {chatMessages.map((msg, i) => (
-          <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[85%] rounded-2xl p-4 text-sm ${
-              msg.role === 'user' 
-                ? 'bg-zinc-900 text-white rounded-tr-none' 
-                : 'bg-white border border-zinc-200 text-zinc-900 rounded-tl-none shadow-sm'
-            }`}>
-              <Markdown>{msg.text}</Markdown>
-            </div>
-          </div>
-        ))}
-        {isTyping && (
-          <div className="flex justify-start">
-            <div className="bg-zinc-100 rounded-2xl p-4 rounded-tl-none">
-              <div className="flex gap-1">
-                <div className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce" />
-                <div className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce [animation-delay:0.2s]" />
-                <div className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce [animation-delay:0.4s]" />
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <form onSubmit={handleSendMessage} className="mt-4 relative">
-        <input 
-          type="text" 
-          value={chatInput}
-          onChange={(e) => setChatInput(e.target.value)}
-          placeholder="Fale com seu coach..."
-          className="w-full bg-white border border-zinc-200 rounded-2xl pl-4 pr-12 py-4 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 shadow-lg"
-        />
-        <button 
-          type="submit"
-          className="absolute right-2 top-2 bottom-2 w-10 bg-zinc-900 text-white rounded-xl flex items-center justify-center active:scale-95 transition-transform"
-        >
-          <Plus className="w-5 h-5 rotate-45" />
-        </button>
-      </form>
-    </motion.div>
-  );
-
   const activePack = packs.find(p => p.status === 'active');
 
   if (loading) {
@@ -306,12 +194,23 @@ export default function App() {
             </div>
             <h1 className="font-bold text-lg tracking-tight">FumoZero</h1>
           </div>
-          <button 
-            onClick={() => setShowHistory(!showHistory)}
-            className="p-2 hover:bg-zinc-100 rounded-full transition-colors"
-          >
-            <History className="w-5 h-5 text-zinc-600" />
-          </button>
+          <div className="flex items-center gap-2">
+            {showInstallBtn && (
+              <button 
+                onClick={handleInstallClick}
+                className="p-2 hover:bg-zinc-100 rounded-full transition-colors text-zinc-600"
+                title="Instalar App"
+              >
+                <Download className="w-5 h-5" />
+              </button>
+            )}
+            <button 
+              onClick={() => setShowHistory(!showHistory)}
+              className="p-2 hover:bg-zinc-100 rounded-full transition-colors"
+            >
+              <History className="w-5 h-5 text-zinc-600" />
+            </button>
+          </div>
         </div>
       </header>
 
@@ -422,47 +321,6 @@ export default function App() {
                   <span className="text-[10px] font-bold uppercase tracking-wider">Média Diária</span>
                 </div>
                 <p className="text-xl font-bold">R$ {stats?.avgSpentPerDay}</p>
-              </div>
-            </section>
-
-            {/* AI Analysis Section */}
-            <section className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 flex items-center gap-2">
-                  <BrainCircuit className="w-4 h-4" /> Análise de Saúde IA
-                </h2>
-                <button 
-                  onClick={generateAiAnalysis}
-                  disabled={analyzing || packs.length === 0}
-                  className="text-xs font-bold text-zinc-900 flex items-center gap-1 disabled:opacity-50"
-                >
-                  {analyzing ? 'Analisando...' : 'Atualizar'} <ChevronRight className="w-3 h-3" />
-                </button>
-              </div>
-
-              <div className="bg-zinc-900 text-zinc-100 rounded-2xl p-6 shadow-xl min-h-[100px] relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-4 opacity-10">
-                  <BrainCircuit className="w-12 h-12" />
-                </div>
-                
-                {analyzing ? (
-                  <div className="flex flex-col items-center justify-center py-8 gap-4">
-                    <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
-                    <p className="text-xs text-zinc-400 animate-pulse">Processando dados de consumo...</p>
-                  </div>
-                ) : aiAnalysis ? (
-                  <div className="prose prose-invert prose-sm max-w-none">
-                    <Markdown>{aiAnalysis}</Markdown>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-8 text-center gap-4">
-                    <p className="text-sm text-zinc-400">
-                      {packs.length === 0 
-                        ? "Comece a rastrear para ver sua análise de saúde." 
-                        : "Clique em atualizar para gerar sua análise personalizada."}
-                    </p>
-                  </div>
-                )}
               </div>
             </section>
           </div>
@@ -687,51 +545,6 @@ export default function App() {
                 Dados baseados em um período de <span className="font-bold text-zinc-900">{stats?.periodDays} dias</span> de uso.
               </p>
             </section>
-
-            {/* Trigger Analysis Section */}
-            <section className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4" /> Análise de Gatilhos
-                </h2>
-                <button 
-                  onClick={generateTriggerAnalysis}
-                  disabled={analyzingTriggers}
-                  className="text-xs font-bold text-zinc-900 flex items-center gap-1 disabled:opacity-50"
-                >
-                  {analyzingTriggers ? 'Analisando...' : 'Analisar Gatilhos'} <ChevronRight className="w-3 h-3" />
-                </button>
-              </div>
-
-              {triggerAnalysis ? (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 gap-3">
-                    {triggerAnalysis.triggers.map((t, i) => (
-                      <div key={i} className="bg-white border border-zinc-200 rounded-2xl p-4 shadow-sm">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-2 h-2 rounded-full bg-indigo-500" />
-                          <h3 className="text-sm font-bold text-zinc-900">{t.name}</h3>
-                        </div>
-                        <p className="text-xs text-zinc-500 mb-3">{t.reason}</p>
-                        <div className="bg-indigo-50 rounded-xl p-3 border border-indigo-100">
-                          <p className="text-[10px] font-bold text-indigo-700 uppercase mb-1">Sugestão Alternativa</p>
-                          <p className="text-xs text-indigo-900">{t.suggestion}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="bg-zinc-900 text-white rounded-2xl p-4 text-center">
-                    <p className="text-xs italic">"{triggerAnalysis.encouragement}"</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="bg-zinc-100 border border-dashed border-zinc-300 rounded-2xl p-8 text-center">
-                  <p className="text-xs text-zinc-500">
-                    Analise seus motivos de consumo para identificar padrões emocionais e situacionais.
-                  </p>
-                </div>
-              )}
-            </section>
           </motion.div>
         )}
       </main>
@@ -751,13 +564,6 @@ export default function App() {
         >
           <TrendingUp className="w-6 h-6" />
           <span className="text-[10px] font-bold uppercase">Análise</span>
-        </button>
-        <button 
-          onClick={() => setActiveTab('coach')}
-          className={`flex flex-col items-center gap-1 transition-colors ${activeTab === 'coach' ? 'text-zinc-900' : 'text-zinc-400'}`}
-        >
-          <BrainCircuit className="w-6 h-6" />
-          <span className="text-[10px] font-bold uppercase">Coach</span>
         </button>
         <button 
           onClick={() => setShowHistory(true)}

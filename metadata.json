@@ -1,5 +1,5 @@
 {
   "name": "FumoZero - Rastreador de Consumo",
-  "description": "Sistema para monitorar consumo e custos com cigarros, com análise de saúde via IA.",
-  "requestFramePermissions": ["microphone"]
+  "description": "Sistema para monitorar consumo e custos com cigarros.",
+  "requestFramePermissions": []
 }
