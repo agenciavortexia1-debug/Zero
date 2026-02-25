@@ -56,6 +56,7 @@ interface Stats {
   avgPacksPerMonth: string;
   avgSpentPerMonth: string;
   avgCostPerUnit: string;
+  avgDaysPerPack: string;
   periodDays: number;
   timeline: { date: string; count: number }[];
   hourlyDistribution: { hour: string; count: number }[];
@@ -167,6 +168,7 @@ export default function App() {
         avgPacksPerMonth: (totalPacks / diffMonths).toFixed(2),
         avgSpentPerMonth: (totalSpent / diffMonths).toFixed(2),
         avgCostPerUnit: totalUnits > 0 ? (totalSpent / totalUnits).toFixed(2) : '0.00',
+        avgDaysPerPack: totalUnits > 0 ? (diffDays / (totalUnits / 20)).toFixed(1) : '0',
         periodDays: diffDays,
         timeline,
         hourlyDistribution
@@ -635,6 +637,10 @@ export default function App() {
                   </div>
 
                   <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-zinc-500">Duração Média da Carteira</span>
+                      <span className="font-bold text-zinc-900">{stats?.avgDaysPerPack} dias</span>
+                    </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-zinc-500">Custo Médio por Cigarro</span>
                       <span className="font-bold text-emerald-600">R$ {stats?.avgCostPerUnit}</span>
