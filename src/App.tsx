@@ -55,8 +55,10 @@ interface Stats {
   avgSpentPerWeek: string;
   avgPacksPerMonth: string;
   avgSpentPerMonth: string;
+  avgCostPerUnit: string;
   periodDays: number;
   timeline: { date: string; count: number }[];
+  hourlyDistribution: { hour: string; count: number }[];
 }
 
 export default function App() {
@@ -130,14 +132,29 @@ export default function App() {
 
       // Timeline
       const timelineMap = new Map();
+      const hourlyMap = new Map();
+      
+      // Initialize hourly map with all 24 hours
+      for (let i = 0; i < 24; i++) {
+        hourlyMap.set(i.toString().padStart(2, '0') + ':00', 0);
+      }
+
       unitsData.forEach(u => {
-        const d = new Date(u.timestamp).toISOString().split('T')[0];
+        const dateObj = new Date(u.timestamp);
+        const d = dateObj.toISOString().split('T')[0];
+        const h = dateObj.getHours().toString().padStart(2, '0') + ':00';
+        
         timelineMap.set(d, (timelineMap.get(d) || 0) + 1);
+        hourlyMap.set(h, (hourlyMap.get(h) || 0) + 1);
       });
 
       const timeline = Array.from(timelineMap.entries())
         .map(([date, count]) => ({ date, count }))
         .sort((a, b) => a.date.localeCompare(b.date));
+
+      const hourlyDistribution = Array.from(hourlyMap.entries())
+        .map(([hour, count]) => ({ hour, count }))
+        .sort((a, b) => a.hour.localeCompare(b.hour));
 
       setStats({
         totalSpent,
@@ -149,8 +166,10 @@ export default function App() {
         avgSpentPerWeek: (totalSpent / diffWeeks).toFixed(2),
         avgPacksPerMonth: (totalPacks / diffMonths).toFixed(2),
         avgSpentPerMonth: (totalSpent / diffMonths).toFixed(2),
+        avgCostPerUnit: totalUnits > 0 ? (totalSpent / totalUnits).toFixed(2) : '0.00',
         periodDays: diffDays,
-        timeline
+        timeline,
+        hourlyDistribution
       });
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -513,14 +532,14 @@ export default function App() {
               </AnimatePresence>
             </section>
 
-            {/* Temporal Chart */}
+            {/* Hourly Distribution Chart */}
             <section>
               <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-4 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4" /> Tendência de Consumo
+                <Clock className="w-4 h-4" /> Distribuição por Horário (24h)
               </h2>
               <div className="bg-white border border-zinc-200 rounded-2xl p-6 shadow-sm h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={stats?.timeline}>
+                  <AreaChart data={stats?.hourlyDistribution}>
                     <defs>
                       <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#18181b" stopOpacity={0.1}/>
@@ -529,11 +548,11 @@ export default function App() {
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f4f4f5" />
                     <XAxis 
-                      dataKey="date" 
+                      dataKey="hour" 
                       axisLine={false} 
                       tickLine={false} 
                       tick={{ fontSize: 10, fill: '#a1a1aa' }}
-                      tickFormatter={(val) => format(new Date(val), 'dd/MM')}
+                      interval={3}
                     />
                     <YAxis 
                       axisLine={false} 
@@ -547,7 +566,7 @@ export default function App() {
                         border: '1px solid #f4f4f5',
                         boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
                       }}
-                      labelFormatter={(val) => format(new Date(val), 'dd/MM/yyyy')}
+                      labelStyle={{ fontWeight: 'bold' }}
                     />
                     <Area 
                       type="monotone" 
@@ -556,6 +575,7 @@ export default function App() {
                       strokeWidth={2}
                       fillOpacity={1} 
                       fill="url(#colorCount)" 
+                      name="Cigarros"
                     />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -615,6 +635,10 @@ export default function App() {
                   </div>
 
                   <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-zinc-500">Custo Médio por Cigarro</span>
+                      <span className="font-bold text-emerald-600">R$ {stats?.avgCostPerUnit}</span>
+                    </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-zinc-500">Média por Dia</span>
                       <span className="font-bold">R$ {stats?.avgSpentPerDay}</span>
